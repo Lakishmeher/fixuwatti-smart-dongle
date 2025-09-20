@@ -1,0 +1,110 @@
+# FixuWatti™ Home Assistant Dashboard
+# Suomalainen energiadashboard Nord Pool + MQTT integraatiolla
+
+# Kopioi tämä Home Assistant dashboardiisi
+# Polku: /config/dashboards/ tai Yleiskatsaus > Muokkaa dashboardia
+
+title: "⚡ FixuWatti™ Energia"
+views:
+  - path: default_view
+    title: "Energiadashboard"
+    icon: mdi:lightning-bolt
+    cards:
+      # Pääyhteenveto
+      - type: entities
+        title: "🏠 Energiatilanne nyt"
+        show_header_toggle: false
+        entities:
+          - entity: sensor.nordpool_kwh_fi_eur_3_10_0_current_price
+            name: "Nord Pool hinta"
+            icon: mdi:currency-eur
+          - entity: sensor.fixuwatti_sahkon_hinta
+            name: "MQTT hinta"
+            icon: mdi:flash
+          - entity: sensor.fixuwatti_soc
+            name: "Akun lataus"
+            icon: mdi:battery-charging
+          - entity: switch.fixuwatti_rele
+            name: "Rele (Auto/Manual)"
+            icon: mdi:power-socket-eu
+          - entity: sensor.fixuwatti_status
+            name: "Laitetila"
+            icon: mdi:information-outline
+
+      # SOC mittari
+      - type: gauge
+        title: "🔋 Akun varaus"
+        entity: sensor.fixuwatti_soc
+        min: 0
+        max: 100
+        needle: true
+        segments:
+          - from: 0
+            color: "#f44336"
+          - from: 20
+            color: "#ff9800"
+          - from: 50
+            color: "#4caf50"
+
+      # Hinnan kehitys
+      - type: history-graph
+        title: "📈 Sähkön hinta (24h)"
+        entities:
+          - entity: sensor.nordpool_kwh_fi_eur_3_10_0_current_price
+            name: "Nord Pool €/kWh"
+          - entity: sensor.fixuwatti_sahkon_hinta
+            name: "MQTT €/kWh"
+        hours_to_show: 24
+        refresh_interval: 300
+
+      # Tilastot
+      - type: statistics-graph
+        title: "📊 Vuorokauden tilastot"
+        entities:
+          - entity: sensor.nordpool_kwh_fi_eur_3_10_0_current_price
+            name: "Hinta"
+          - entity: sensor.fixuwatti_soc
+            name: "SOC"
+        chart_type: line
+        period: hour
+        days_to_show: 1
+
+      # Releen ohjaus
+      - type: glance
+        title: "🔌 Laitteiden ohjaus"
+        entities:
+          - entity: switch.fixuwatti_rele
+            name: "FixuWatti™ Rele"
+            icon: mdi:power-socket-eu
+          - entity: sensor.fixuwatti_status
+            name: "Tila"
+            icon: mdi:chip
+
+      # Säästöt ja kulutus (jos dataa saatavilla)
+      - type: energy-date-selection
+        title: "💰 Energiankulutus"
+
+      # Tärkeimmät arvot numeroina
+      - type: horizontal-stack
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.nordpool_kwh_fi_eur_3_10_0_current_price
+            name: "Spot-hinta"
+            icon: mdi:lightning-bolt
+            icon_color: amber
+            primary_info: name
+            secondary_info: state
+          - type: custom:mushroom-entity-card
+            entity: sensor.fixuwatti_soc
+            name: "Akku SOC"
+            icon: mdi:battery
+            icon_color: green
+            primary_info: name
+            secondary_info: state
+          - type: custom:mushroom-entity-card
+            entity: switch.fixuwatti_rele
+            name: "Rele"
+            icon: mdi:power-socket-eu
+            icon_color: blue
+            primary_info: name
+            secondary_info: state

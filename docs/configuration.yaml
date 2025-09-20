@@ -1,0 +1,208 @@
+# FixuWatti™ Home Assistant Configuration
+# Lisää nämä pätkät configuration.yaml tiedostoon
+
+# MQTT Broker konfiguraatio
+mqtt:
+  broker: 192.168.1.100  # Vaihda oman MQTT brokerin IP
+  port: 1883
+  username: !secret mqtt_username  # secrets.yaml: mqtt_username: "mqttuser"
+  password: !secret mqtt_password  # secrets.yaml: mqtt_password: "mqttpass"
+  discovery: true  # Automaattinen laitteiden löytäminen
+
+  # FixuWatti™ MQTT Sensorit
+  sensor:
+    # Akun SOC (State of Charge)
+    - name: "FixuWatti SOC"
+      state_topic: "fixuwatti/mvp1/sensor/soc"
+      unit_of_measurement: "%"
+      device_class: "battery"
+      state_class: "measurement"
+      icon: "mdi:battery"
+      unique_id: "fixuwatti_soc"
+      availability:
+        - topic: "fixuwatti/mvp1/status"
+          value_template: "{{ value_json.wifi }}"
+      
+    # MQTT:n kautta tuleva sähkön hinta
+    - name: "FixuWatti Sähkön Hinta"
+      state_topic: "fixuwatti/mvp1/sensor/price"
+      unit_of_measurement: "€/kWh"
+      device_class: "monetary"
+      state_class: "measurement"
+      icon: "mdi:lightning-bolt"
+      unique_id: "fixuwatti_price"
+      
+    # FixuWatti™ laitteen tila (AUTO/MANUAL)
+    - name: "FixuWatti Status"
+      state_topic: "fixuwatti/mvp1/status"
+      value_template: "{{ value_json.mode }}"
+      icon: "mdi:chip"
+      unique_id: "fixuwatti_status"
+      
+    # WiFi-yhteyden tila
+    - name: "FixuWatti WiFi"
+      state_topic: "fixuwatti/mvp1/status"
+      value_template: >
+        {% if value_json.wifi %}
+          Yhdistetty
+        {% else %}
+          Ei yhteyttä
+        {% endif %}
+      icon: "mdi:wifi"
+      unique_id: "fixuwatti_wifi"
+      
+    # MQTT-yhteyden tila
+    - name: "FixuWatti MQTT"
+      state_topic: "fixuwatti/mvp1/status"
+      value_template: >
+        {% if value_json.mqtt %}
+          Yhdistetty
+        {% else %}
+          Ei yhteyttä
+        {% endif %}
+      icon: "mdi:access-point-network"
+      unique_id: "fixuwatti_mqtt"
+
+    # INA219 virta-anturi (jos käytössä)
+    - name: "FixuWatti Jännite"
+      state_topic: "fixuwatti/mvp1/sensor/ina219"
+      value_template: "{{ value_json.busvoltage }}"
+      unit_of_measurement: "V"
+      device_class: "voltage"
+      state_class: "measurement"
+      icon: "mdi:flash"
+      unique_id: "fixuwatti_voltage"
+      
+    - name: "FixuWatti Virta"
+      state_topic: "fixuwatti/mvp1/sensor/ina219"
+      value_template: "{{ value_json.current }}"
+      unit_of_measurement: "mA"
+      device_class: "current"
+      state_class: "measurement"
+      icon: "mdi:current-ac"
+      unique_id: "fixuwatti_current"
+
+  # FixuWatti™ kytkimet
+  switch:
+    # Releen ohjaus
+    - name: "FixuWatti Rele"
+      state_topic: "fixuwatti/mvp1/switch/rele1/state"
+      command_topic: "fixuwatti/mvp1/switch/rele1/command"
+      payload_on: "ON"
+      payload_off: "OFF"
+      state_on: "ON"
+      state_off: "OFF"
+      icon: "mdi:power-socket-eu"
+      unique_id: "fixuwatti_relay"
+      availability:
+        - topic: "fixuwatti/mvp1/status"
+
+# Template sensorit laskutoimituksille
+template:
+  - sensor:
+      # Päivän keskihinta
+      - name: "Nord Pool Keskihinta Tänään"
+        unit_of_measurement: "€/kWh"
+        state: >
+          {% set prices = state_attr('sensor.nordpool_kwh_fi_eur_3_10_0', 'today') %}
+          {% if prices %}
+            {{ (prices | sum / prices | length) | round(4) }}
+          {% else %}
+            unavailable
+          {% endif %}
+        icon: "mdi:calculator"
+        
+      # Hintojen min/max tänään
+      - name: "Nord Pool Halvin Tänään"
+        unit_of_measurement: "€/kWh"
+        state: >
+          {% set prices = state_attr('sensor.nordpool_kwh_fi_eur_3_10_0', 'today') %}
+          {% if prices %}
+            {{ prices | min }}
+          {% else %}
+            unavailable
+          {% endif %}
+        icon: "mdi:arrow-down-circle"
+        
+      - name: "Nord Pool Kallein Tänään"
+        unit_of_measurement: "€/kWh"
+        state: >
+          {% set prices = state_attr('sensor.nordpool_kwh_fi_eur_3_10_0', 'today') %}
+          {% if prices %}
+            {{ prices | max }}
+          {% else %}
+            unavailable
+          {% endif %}
+        icon: "mdi:arrow-up-circle"
+
+      # Säästölaskuri (vertailu keskihintaan)
+      - name: "FixuWatti Säästö Tänään"
+        unit_of_measurement: "€"
+        state: >
+          {% set current = states('sensor.nordpool_kwh_fi_eur_3_10_0_current_price') | float(0) %}
+          {% set avg = states('sensor.nord_pool_keskihinta_tanaan') | float(0) %}
+          {% set consumption = 1.0 %}  # Oletetaan 1 kWh kulutus
+          {% if current > 0 and avg > 0 %}
+            {{ ((avg - current) * consumption) | round(2) }}
+          {% else %}
+            0
+          {% endif %}
+        icon: "mdi:piggy-bank"
+
+# Utility Meter - päivittäiset/kuukausittaiset tilastot
+utility_meter:
+  fixuwatti_paivittainen_kulutus:
+    source: sensor.fixuwatti_current
+    cycle: daily
+    name: "FixuWatti Päivittäinen Kulutus"
+    
+  fixuwatti_kuukausittainen_kulutus:
+    source: sensor.fixuwatti_current
+    cycle: monthly
+    name: "FixuWatti Kuukausittainen Kulutus"
+
+# Input booleanit manuaalista ohjausta varten
+input_boolean:
+  fixuwatti_manual_override:
+    name: "FixuWatti Manuaalinen Ohjaus"
+    initial: false
+    icon: "mdi:hand-back-right"
+
+# Input numberit raja-arvojen säätöä varten
+input_number:
+  fixuwatti_low_price_limit:
+    name: "FixuWatti Matala Hinta Raja"
+    min: 0.01
+    max: 0.50
+    step: 0.01
+    initial: 0.09
+    unit_of_measurement: "€/kWh"
+    icon: "mdi:arrow-down"
+    
+  fixuwatti_high_price_limit:
+    name: "FixuWatti Korkea Hinta Raja"
+    min: 0.01
+    max: 1.00
+    step: 0.01
+    initial: 0.25
+    unit_of_measurement: "€/kWh"
+    icon: "mdi:arrow-up"
+
+# Rekorderit historian säilyttämiseksi
+recorder:
+  include:
+    entities:
+      - sensor.nordpool_kwh_fi_eur_3_10_0_current_price
+      - sensor.fixuwatti_soc
+      - sensor.fixuwatti_sahkon_hinta
+      - switch.fixuwatti_rele
+      - sensor.fixuwatti_status
+      - sensor.fixuwatti_voltage
+      - sensor.fixuwatti_current
+
+# Logger debug-tiedot (valinnainen)
+logger:
+  default: info
+  logs:
+    homeassistant.components.mqtt: debug  # MQTT debug
+    custom_components.nordpool: info      # Nord Pool debug

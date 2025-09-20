@@ -1,0 +1,142 @@
+# FixuWatti™ Home Assistant Automaatiot
+# Lisää nämä automations.yaml tiedostoon tai Home Assistant automaatio-editoriin
+
+# Hinta-alarm: Ilmoitus kun sähkön hinta nousee korkeaksi
+- alias: "FixuWatti™ Korkea sähkön hinta"
+  description: "Lähetä ilmoitus kun sähkön hinta ylittää 25 snt/kWh"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.nordpool_kwh_fi_eur_3_10_0_current_price
+      above: 0.25  # €/kWh (25 snt)
+  condition:
+    - condition: time
+      after: "06:00:00"
+      before: "23:00:00"  # Ei hälyytyksiä yöllä
+  action:
+    - service: notify.mobile_app_iphone  # Vaihda omaan laitteeseen
+      data:
+        message: "⚡ Sähkön hinta korkea: {{ states('sensor.nordpool_kwh_fi_eur_3_10_0_current_price') }} €/kWh"
+        title: "FixuWatti™ Hinta-alarm"
+        data:
+          push:
+            badge: 1
+            sound: "default"
+
+# Halpa sähkö: Ilmoitus kun hinta laskee alle tipping pointin
+- alias: "FixuWatti™ Halpa sähkö"
+  description: "Ilmoita kun sähkö on halpaa (alle 9 snt/kWh)"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.nordpool_kwh_fi_eur_3_10_0_current_price
+      below: 0.09  # €/kWh (9 snt)
+  action:
+    - service: notify.mobile_app_iphone
+      data:
+        message: "💰 Sähkö halpaa! Hinta: {{ states('sensor.nordpool_kwh_fi_eur_3_10_0_current_price') }} €/kWh"
+        title: "FixuWatti™ Säästömahdollisuus"
+        data:
+          push:
+            badge: 1
+            sound: "default"
+
+# Akun matala SOC
+- alias: "FixuWatti™ Matala akun varaus"
+  description: "Hälytys kun akun SOC laskee alle 20%"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.fixuwatti_soc
+      below: 20  # %
+  condition:
+    - condition: template
+      value_template: "{{ trigger.to_state.state != 'unknown' }}"
+  action:
+    - service: notify.mobile_app_iphone
+      data:
+        message: "🔋 FixuWatti™ akku matala: {{ states('sensor.fixuwatti_soc') }}%"
+        title: "Akku-alarm"
+        data:
+          push:
+            badge: 1
+            sound: "critical"
+
+# Yhteyshäiriö: MQTT-yhteys katkennut
+- alias: "FixuWatti™ Yhteyshäiriö"
+  description: "Ilmoitus jos FixuWatti™ ei lähetä dataa 10 minuuttiin"
+  trigger:
+    - platform: state
+      entity_id: sensor.fixuwatti_soc
+      to: "unavailable"
+      for:
+        minutes: 10
+  action:
+    - service: notify.mobile_app_iphone
+      data:
+        message: "⚠️ FixuWatti™ ei vastaa - tarkista MQTT-yhteys"
+        title: "Yhteyshäiriö"
+        data:
+          push:
+            badge: 1
+            sound: "default"
+
+# Automaattinen releen ohjaus hinnan mukaan (vain jos manual-tila)
+- alias: "FixuWatti™ Auto-ohjaus ON"
+  description: "Kytke rele päälle kun hinta laskee alle 9 snt ja tila on AUTO"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.nordpool_kwh_fi_eur_3_10_0_current_price
+      below: 0.09
+  condition:
+    - condition: state
+      entity_id: sensor.fixuwatti_status
+      state: "AUTO"
+    - condition: state
+      entity_id: switch.fixuwatti_rele
+      state: "off"
+  action:
+    - service: switch.turn_on
+      entity_id: switch.fixuwatti_rele
+    - service: notify.mobile_app_iphone
+      data:
+        message: "⚡ FixuWatti™ rele kytketty päälle - halpa sähkö ({{ states('sensor.nordpool_kwh_fi_eur_3_10_0_current_price') }} €/kWh)"
+        title: "Automaattinen ohjaus"
+
+- alias: "FixuWatti™ Auto-ohjaus OFF"
+  description: "Kytke rele pois kun hinta nousee yli 25 snt ja tila on AUTO"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.nordpool_kwh_fi_eur_3_10_0_current_price
+      above: 0.25
+  condition:
+    - condition: state
+      entity_id: sensor.fixuwatti_status
+      state: "AUTO"
+    - condition: state
+      entity_id: switch.fixuwatti_rele
+      state: "on"
+  action:
+    - service: switch.turn_off
+      entity_id: switch.fixuwatti_rele
+    - service: notify.mobile_app_iphone
+      data:
+        message: "⚡ FixuWatti™ rele kytketty pois - kallis sähkö ({{ states('sensor.nordpool_kwh_fi_eur_3_10_0_current_price') }} €/kWh)"
+        title: "Automaattinen ohjaus"
+
+# Päivittäinen yhteenveto
+- alias: "FixuWatti™ Päivittäinen raportti"
+  description: "Lähetä päivän energiatilastot aamulla klo 8"
+  trigger:
+    - platform: time
+      at: "08:00:00"
+  action:
+    - service: notify.mobile_app_iphone
+      data:
+        message: >
+          🌅 Huomenta! Tänään:
+          💰 Keskihinta: {{ states('sensor.nordpool_kwh_fi_eur_3_10_0_current_price') }} €/kWh
+          🔋 Akku SOC: {{ states('sensor.fixuwatti_soc') }}%
+          ⚡ Rele: {{ states('switch.fixuwatti_rele') }}
+          📊 Tila: {{ states('sensor.fixuwatti_status') }}
+        title: "FixuWatti™ Päivän aloitus"
+        data:
+          push:
+            badge: 0
