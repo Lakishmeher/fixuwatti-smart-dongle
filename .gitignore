@@ -1,0 +1,43 @@
+# PlatformIO/Arduino IDE files
+.pio/
+.vscode/
+.clang_complete
+.gcc-flags.json
+.ccls
+
+# Build artifacts
+build/
+*.bin
+*.hex
+*.elf
+*.map
+
+# IDE files
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Logs
+*.log
+
+# Configuration files (keep template)
+config.h
+secrets.h
+
+# Dependencies
+lib/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

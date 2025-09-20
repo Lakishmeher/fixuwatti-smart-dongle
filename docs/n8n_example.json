@@ -1,0 +1,79 @@
+{
+  "name": "FixuWatti MVP - Nord Pool & MQTT",
+  "nodes": [
+    {
+      "parameters": {
+        "requestMethod": "GET",
+        "url": "https://api.nordpool.group/v2/price",
+        "options": {},
+        "queryParametersUi": {
+          "parameter": [
+            { "name": "area", "value": "FI" }
+          ]
+        }
+      },
+      "id": "Http Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Hae pörssihinta"
+    },
+    {
+      "parameters": {
+        "topic": "fixuwatti/mvp1/sensor/price",
+        "payload": "={{ $json[\"price\"] }}",
+        "qos": 0,
+        "retain": true
+      },
+      "id": "MQTT Publish",
+      "type": "n8n-nodes-base.mqtt",
+      "name": "Julkaise MQTT"
+    },
+    {
+      "parameters": {
+        "functionCode": "const price = parseFloat($json[\"price\"]);\nconst LOW = 0.09, HIGH = 0.25;\nlet cmd = \"\";\nif(price < LOW) cmd = \"ON\";\nif(price > HIGH) cmd = \"OFF\";\nreturn [{ topic: 'fixuwatti/mvp1/switch/rele1/command', payload: cmd }];"
+      },
+      "id": "Tipping Function",
+      "type": "n8n-nodes-base.function",
+      "name": "Tipping Logic"
+    },
+    {
+      "parameters": {
+        "topic": "={{ $json[\"topic\"] }}",
+        "payload": "={{ $json[\"payload\"] }}",
+        "qos": 0,
+        "retain": true
+      },
+      "id": "MQTT Command",
+      "type": "n8n-nodes-base.mqtt",
+      "name": "Lähetä ohjaus"
+    }
+  ],
+  "connections": {
+    "Hae pörssihinta": {
+      "main": [
+        [
+          {
+            "node": "Julkaise MQTT",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Tipping Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipping Logic": {
+      "main": [
+        [
+          {
+            "node": "Lähetä ohjaus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
