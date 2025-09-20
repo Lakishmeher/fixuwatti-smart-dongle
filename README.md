@@ -5,6 +5,8 @@
 ## 🎯 Tavoite
 Tämä projekti toteuttaa FixuWatti™ Smart Dongle -MVP:n **M5Stack Core2**-laitteella (ESP32). Laite ohjaa relettä sähköpörssin hinnan perusteella, näyttää datan näytöllä ja julkaisee tilatiedot MQTT:hen automaatiota varten (n8n/Node-RED).
 
+**✅ Firmware testattu ja toimiva M5Stack Core2:ssa!**
+
 ---
 
 ## 🛠 Tekninen rakenne
@@ -29,8 +31,10 @@ Tämä projekti toteuttaa FixuWatti™ Smart Dongle -MVP:n **M5Stack Core2**-lai
 - Releen ohjaus: Auto/Manual-tila
 - Kolme kosketuspainiketta: Quick Kill, Auto/Manual, Status/Reset
 - Reaaliaikainen näyttö: sähkön hinta, SOC, säästö, Wi-Fi/MQTT-status
-- MQTT-integraatio
+- MQTT-integraatio Home Assistantiin
 - OTA-päivitykset
+- Nord Pool sähköpörssin integraatio
+- Suomenkielinen energiadashboard
 
 ---
 
@@ -58,9 +62,26 @@ Muokkaa `main.cpp`-tiedoston alkuun Wi-Fi ja MQTT-asetukset.
 ### 3. Käännä & Lataa
 
 - **PlatformIO:**  
-  `pio run -t upload`
+  ```bash
+  pio run -t upload    # Käännä ja lataa
+  pio device monitor   # Avaa serial monitor
+  ```
 - **Arduino IDE:**  
-  Avaa `main.cpp`, valitse M5Stack Core2 -kortti ja lataa.
+  Avaa `src/main.cpp`, valitse M5Stack Core2 -kortti ja lataa.
+
+### 4. ✅ Testattu toiminta
+
+**Onnistunut flashaus M5Stack Core2:een:**
+- ✅ Firmware käännetty ja ladattu onnistuneesti
+- ✅ PlatformIO auto-tunnisti portin `/dev/cu.usbserial-2120`
+- ✅ Flash tyhjennetty ja `firmware.bin` ladattu (ESP32-PICO-D4)
+- ✅ Laite käynnissä FixuWatti™ buildilla
+- ✅ RAM käyttö: 1.1%, Flash: 14.3%
+
+**Seuraa toimintaa:**
+```bash
+pio device monitor  # Näytä serial-tulosteet reaaliajassa
+```
 
 ---
 
@@ -116,13 +137,29 @@ Katso esimerkkiflow tiedostosta [`docs/n8n_example.json`](docs/n8n_example.json)
 
 ```
 /
-├── main.cpp
-├── platformio.ini
-├── README.md
+├── src/main.cpp              # M5Stack Core2 pääkoodi
+├── platformio.ini            # PlatformIO konfiguraatio
+├── README.md                 # Projektin dokumentaatio
 ├── docs/
-│   ├── n8n_example.json
-│   └── ui_mockup.png
+│   ├── HOME_ASSISTANT.md     # Home Assistant integraatio-opas
+│   ├── home_assistant_dashboard.yaml  # Valmis HA dashboard
+│   ├── configuration.yaml    # HA MQTT sensorit
+│   ├── automations.yaml      # HA automaatiot
+│   ├── n8n_example.json      # n8n Nord Pool workflow
+│   └── ui_mockup.png         # UI-mockup kuva
 ```
+
+---
+
+## 🏠 Home Assistant Integraatio
+
+Täydellinen energiadashboard suomalaiselle markkinalle:
+- 📊 **Nord Pool** sähköpörssin hinnat
+- 🔋 **FixuWatti™** akun SOC ja releen tila
+- 🤖 **Automaatiot** hinta-hälytyksille
+- 🇫🇮 **Suomenkielinen** käyttöliittymä
+
+**Katso:** [`docs/HOME_ASSISTANT.md`](docs/HOME_ASSISTANT.md) - Täydellinen asennusopas
 
 ---
 
